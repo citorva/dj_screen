@@ -4,8 +4,8 @@ mod buffer;
 mod error;
 // mod shared_buffer;
 
-#[cfg(test)]
-mod test_helper;
+#[cfg(feature = "test-helper")]
+pub mod test_helper;
 
 pub use buffer::*;
 pub use error::*;

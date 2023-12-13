@@ -3,5 +3,12 @@ name = "dj_screen"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+test-helper = []
+
 [dependencies]
 rusb = "0.9"
+
+[dev-dependencies.dj_screen]
+path = "."
+features = ["test-helper"]
