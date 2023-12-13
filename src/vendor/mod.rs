@@ -1,3 +1,5 @@
+pub mod traktor;
+
 use crate::error::*;
 use crate::Buffer;
 
