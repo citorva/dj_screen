@@ -90,6 +90,7 @@ impl<'a> Iterator for BufferIter<'a> {
     }
 }
 
+#[cfg(test)]
 mod test {
     use crate::test_helper::{DummyBuffer, COLOR_RED};
     use crate::IntoPixelIter;
