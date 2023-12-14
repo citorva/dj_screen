@@ -32,8 +32,8 @@ pub trait Color: Sized {
         Self::Component::max_component(red, green, blue)
     }
 
-    fn fill_rgb(self, buf: &mut [u8]) -> Result<()> {
-        Error::check_length(buf, 3)?;
+    fn fill_rgb(self, buf: &mut [u8]) -> CoreResult<()> {
+        CoreError::check_length(buf, 3)?;
 
         let [red, green, blue] = self.components();
 
@@ -43,8 +43,8 @@ pub trait Color: Sized {
 
         Ok(())
     }
-    fn fill_bgr(self, buf: &mut [u8]) -> Result<()> {
-        Error::check_length(buf, 3)?;
+    fn fill_bgr(self, buf: &mut [u8]) -> CoreResult<()> {
+        CoreError::check_length(buf, 3)?;
 
         let [red, green, blue] = self.components();
 
@@ -54,20 +54,20 @@ pub trait Color: Sized {
 
         Ok(())
     }
-    fn fill_rgb565le(self, buf: &mut [u8]) -> Result<()> {
+    fn fill_rgb565le(self, buf: &mut [u8]) -> CoreResult<()> {
         self.into_rgb565().convert_le(buf)
     }
-    fn fill_rgb565be(self, buf: &mut [u8]) -> Result<()> {
+    fn fill_rgb565be(self, buf: &mut [u8]) -> CoreResult<()> {
         self.into_rgb565().convert_be(buf)
     }
-    fn fill_bgr565le(self, buf: &mut [u8]) -> Result<()> {
+    fn fill_bgr565le(self, buf: &mut [u8]) -> CoreResult<()> {
         self.into_bgr565().convert_le(buf)
     }
-    fn fill_bgr565be(self, buf: &mut [u8]) -> Result<()> {
+    fn fill_bgr565be(self, buf: &mut [u8]) -> CoreResult<()> {
         self.into_bgr565().convert_be(buf)
     }
-    fn fill_grayscale_1bit(from: [Self; 8], buf: &mut [u8]) -> Result<()> {
-        Error::check_length(buf, 1)?;
+    fn fill_grayscale_1bit(from: [Self; 8], buf: &mut [u8]) -> CoreResult<()> {
+        CoreError::check_length(buf, 1)?;
 
         buf[0] = 0;
 
@@ -79,8 +79,8 @@ pub trait Color: Sized {
 
         Ok(())
     }
-    fn fill_grayscale_2bit(from: [Self; 4], buf: &mut [u8]) -> Result<()> {
-        Error::check_length(buf, 1)?;
+    fn fill_grayscale_2bit(from: [Self; 4], buf: &mut [u8]) -> CoreResult<()> {
+        CoreError::check_length(buf, 1)?;
 
         buf[0] = 0;
 
@@ -92,8 +92,8 @@ pub trait Color: Sized {
 
         Ok(())
     }
-    fn fill_grayscale_4bit(from: [Self; 2], buf: &mut [u8]) -> Result<()> {
-        Error::check_length(buf, 1)?;
+    fn fill_grayscale_4bit(from: [Self; 2], buf: &mut [u8]) -> CoreResult<()> {
+        CoreError::check_length(buf, 1)?;
 
         buf[0] = 0;
 
@@ -105,19 +105,19 @@ pub trait Color: Sized {
 
         Ok(())
     }
-    fn fill_grayscale_8bit(self, buf: &mut [u8]) -> Result<()> {
-        Error::check_length(buf, 1)?;
+    fn fill_grayscale_8bit(self, buf: &mut [u8]) -> CoreResult<()> {
+        CoreError::check_length(buf, 1)?;
 
         buf[0] = self.luminance().most_significant_byte();
 
         Ok(())
     }
 
-    fn fill_grayscale_16bit_le(self, _buf: &mut [u8]) -> Result<()> {
+    fn fill_grayscale_16bit_le(self, _buf: &mut [u8]) -> CoreResult<()> {
         todo!()
     }
 
-    fn fill_grayscale_16bit_be(self, _buf: &mut [u8]) -> Result<()> {
+    fn fill_grayscale_16bit_be(self, _buf: &mut [u8]) -> CoreResult<()> {
         todo!()
     }
 }

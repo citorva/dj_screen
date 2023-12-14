@@ -104,11 +104,11 @@
 use crate::error::*;
 use crate::vendor::{Driver, ScreenHandle};
 use crate::Buffer;
-use rusb::{DeviceHandle, UsbContext};
 use std::marker::PhantomData;
 use std::ops::DerefMut;
 use std::sync::{Mutex, MutexGuard};
 use std::time::Duration;
+use crate::usb::UsbDevice;
 
 const WIDTH: u16 = 320;
 const HEIGHT: u16 = 240;
@@ -137,14 +137,14 @@ pub struct PacketBuilder {
     screen: u8,
 }
 
-pub struct KontrolS4MK3Driver<'a, CTX: UsbContext> {
-    handle: DeviceHandle<CTX>,
+pub struct KontrolS4MK3Driver<'a, DEV: UsbDevice> {
+    handle: DEV,
     acquired_screens: [Mutex<bool>; SCREEN_NUMBER],
     _lifetime: PhantomData<&'a ()>,
 }
 
-pub struct Handle<'a, CTX: UsbContext> {
-    driver: &'a KontrolS4MK3Driver<'a, CTX>,
+pub struct Handle<'a, DEV : UsbDevice> {
+    driver: &'a KontrolS4MK3Driver<'a, DEV>,
     screen: u8,
     buffer: [u8; MAX_LENGTH],
 }
@@ -172,24 +172,24 @@ impl PacketBuilder {
     }
 
     fn trim_dimensions(&self) -> Option<[u16; 4]> {
-        let x1 = WIDTH.min(self.x);
-        let x2 = WIDTH.min(self.x + self.width);
+        let x1 = 320.min(self.x);
+        let x2 = 320.min(self.x + self.width);
 
-        let y1 = HEIGHT.min(self.y);
-        let y2 = HEIGHT.min(self.y + self.height);
+        let y1 = 240.min(self.y);
+        let y2 = 240.min(self.y + self.height);
 
         if x1 == x2 || y1 == y2 {
             None
         } else {
-            Some([x1, y1, x2 - x1, y2 - y1])
+            Some([x1, y1, (x2 - x1), (y2 - y1)])
         }
     }
 
-    pub fn fill_from_buffer<B: Buffer>(&self, target: &mut [u8], source: B) -> Result<()> {
+    pub fn fill_from_buffer<B: Buffer>(&self, target: &mut [u8], source: B) -> CoreResult<()> {
         if let Some([x, y, width, height]) = self.trim_dimensions() {
             let length = self.packet_length();
 
-            Error::check_length(target, length)?;
+            CoreError::check_length(target, length)?;
 
             let pixbuf_offset = HEADER_LENGTH;
             let footer_offset = length - FOOTER_LENGTH;
@@ -232,7 +232,7 @@ impl PacketBuilder {
     }
 }
 
-impl<'a, CTX: UsbContext> Handle<'a, CTX> {
+impl<'a, DEV: UsbDevice> Handle<'a, DEV> {
     fn fill_from_buffer<B: Buffer>(
         &mut self,
         buffer: B,
@@ -240,7 +240,7 @@ impl<'a, CTX: UsbContext> Handle<'a, CTX> {
         y: u16,
         width: u16,
         height: u16,
-    ) -> Result<usize> {
+    ) -> Result<usize, DEV> {
         let builder = PacketBuilder::new(width, height, self.screen).with_position(x, y);
         let to = builder.packet_length();
         let bytes = &mut self.buffer[..to];
@@ -251,7 +251,7 @@ impl<'a, CTX: UsbContext> Handle<'a, CTX> {
     }
 }
 
-impl<'a, CTX: UsbContext> KontrolS4MK3Driver<'a, CTX> {
+impl<'a, DEV: UsbDevice> KontrolS4MK3Driver<'a, DEV> {
     fn get_guard(&self, screen_id: usize) -> MutexGuard<bool> {
         match self.acquired_screens[screen_id].lock() {
             Ok(v) => v,
@@ -259,17 +259,17 @@ impl<'a, CTX: UsbContext> KontrolS4MK3Driver<'a, CTX> {
         }
     }
 
-    fn try_acquire(&self, screen_id: usize) -> Result<()> {
+    fn try_acquire(&self, screen_id: usize) -> Result<(), DEV> {
         let mut guard = self.get_guard(screen_id);
         let acquired = guard.deref_mut();
 
         if *acquired {
-            Error::throw_busy_screen_error(screen_id)
-        } else {
-            *acquired = true;
-
-            Ok(())
+            CoreError::throw_busy_screen_error(screen_id)?;
         }
+
+        *acquired = true;
+
+        Ok(())
     }
 
     fn release_screen(&self, screen_id: usize) {
@@ -277,22 +277,22 @@ impl<'a, CTX: UsbContext> KontrolS4MK3Driver<'a, CTX> {
     }
 }
 
-impl<'a, CTX: UsbContext + 'a> Driver<'a, CTX> for KontrolS4MK3Driver<'a, CTX> {
+impl<'a, DEV: UsbDevice + 'a> Driver<'a, DEV> for KontrolS4MK3Driver<'a, DEV> {
     const NAME: &'static str = "National Instrument Traktor Kontrol S4 MK3";
 
     const SCREEN_NUMBER: usize = 2;
 
-    type Handle = Handle<'a, CTX>;
+    type Handle = Handle<'a, DEV>;
 
-    fn check_device_id(vendor_id: u16, device_id: u16) -> Result<()> {
-        if vendor_id == 0x17cc && device_id == 0x1720 {
-            Ok(())
-        } else {
-            Error::throw_unsupported_device_error::<Self, CTX>(vendor_id, device_id)
+    fn check_device_id(vendor_id: u16, device_id: u16) -> Result<(), DEV> {
+        if vendor_id != 0x17cc || device_id != 0x1720 {
+            CoreError::throw_unsupported_device_error::<Self, DEV>(vendor_id, device_id)?;
         }
+
+        Ok(())
     }
 
-    fn try_init(handle: DeviceHandle<CTX>) -> Result<Self> {
+    fn try_init(handle: DEV) -> Result<Self, DEV> {
         Self::is_made_for(&handle)?;
 
         Ok(Self {
@@ -302,8 +302,8 @@ impl<'a, CTX: UsbContext + 'a> Driver<'a, CTX> for KontrolS4MK3Driver<'a, CTX> {
         })
     }
 
-    fn acquire_screen(&'a self, screen_id: usize) -> Result<Self::Handle> {
-        Error::check_screen(screen_id, SCREEN_NUMBER)?;
+    fn acquire_screen(&'a self, screen_id: usize) -> Result<Self::Handle, DEV> {
+        CoreError::check_screen(screen_id, SCREEN_NUMBER)?;
 
         self.try_acquire(screen_id)?;
 
@@ -315,7 +315,7 @@ impl<'a, CTX: UsbContext + 'a> Driver<'a, CTX> for KontrolS4MK3Driver<'a, CTX> {
     }
 }
 
-impl<'a, CTX: UsbContext> ScreenHandle for Handle<'a, CTX> {
+impl<'a, DEV: UsbDevice> ScreenHandle<DEV> for Handle<'a, DEV> {
     fn send_buffer<B: Buffer>(
         &mut self,
         buffer: B,
@@ -323,12 +323,14 @@ impl<'a, CTX: UsbContext> ScreenHandle for Handle<'a, CTX> {
         y: u16,
         width: u16,
         height: u16,
-    ) -> Result<()> {
+    ) -> Result<(), DEV> {
         let buffer_to = self.fill_from_buffer(buffer, x, y, width, height)?;
 
-        self.driver.handle.write_bulk(ENDPOINT, &self.buffer[..buffer_to], TIMEOUT)?;
-
-        Ok(())
+        if let Err(e) = self.driver.handle.write_bulk(ENDPOINT, &self.buffer[..buffer_to], TIMEOUT) {
+            Err(Error::Usb(e))
+        } else {
+            Ok(())
+        }
     }
 
     fn width(&self) -> u16 {
@@ -340,7 +342,7 @@ impl<'a, CTX: UsbContext> ScreenHandle for Handle<'a, CTX> {
     }
 }
 
-impl<'a, CTX: UsbContext> Drop for Handle<'a, CTX> {
+impl<'a, DEV: UsbDevice> Drop for Handle<'a, DEV> {
     fn drop(&mut self) {
         self.driver.release_screen(self.screen as usize);
     }
@@ -351,9 +353,8 @@ mod tests {
     use crate::test_helper::{DummyBuffer, COLOR_RED};
     use crate::vendor::traktor::kontrol_s4_mk3::PacketBuilder;
 
-    const BUILDER: PacketBuilder = PacketBuilder::new_size(16, 16)
-        .with_position(16, 16)
-        .with_screen(5);
+    const BUILDER: PacketBuilder = PacketBuilder::new(16, 16, 5)
+        .with_position(16, 16);
 
     #[test]
     fn test_buffer_size() {

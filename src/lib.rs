@@ -6,6 +6,7 @@ mod error;
 
 #[cfg(feature = "test-helper")]
 pub mod test_helper;
+mod usb;
 
 pub use buffer::*;
 pub use error::*;

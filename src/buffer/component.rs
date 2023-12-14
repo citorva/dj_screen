@@ -3,16 +3,16 @@ use crate::error::*;
 pub trait Component {
     const LENGTH: usize;
 
-    fn convert_le(self, buf: &mut [u8]) -> Result<()>;
-    fn convert_be(self, buf: &mut [u8]) -> Result<()>;
+    fn convert_le(self, buf: &mut [u8]) -> CoreResult<()>;
+    fn convert_be(self, buf: &mut [u8]) -> CoreResult<()>;
 
     fn max_component(self, other1: Self, other2: Self) -> Self;
 
     fn most_significant_byte(self) -> u8;
 }
 
-fn copy_buffer<const LENGTH: usize>(from: [u8; LENGTH], to: &mut [u8]) -> Result<()> {
-    Error::check_length(to, LENGTH)?;
+fn copy_buffer<const LENGTH: usize>(from: [u8; LENGTH], to: &mut [u8]) -> CoreResult<()> {
+    CoreError::check_length(to, LENGTH)?;
 
     for i in 0..LENGTH {
         to[i] = from[i];
@@ -26,11 +26,11 @@ macro_rules! impl_component {
         impl Component for $t {
             const LENGTH: usize = $length;
 
-            fn convert_le(self, buf: &mut [u8]) -> Result<()> {
+            fn convert_le(self, buf: &mut [u8]) -> CoreResult<()> {
                 copy_buffer(self.to_le_bytes(), buf)
             }
 
-            fn convert_be(self, buf: &mut [u8]) -> Result<()> {
+            fn convert_be(self, buf: &mut [u8]) -> CoreResult<()> {
                 copy_buffer(self.to_be_bytes(), buf)
             }
 

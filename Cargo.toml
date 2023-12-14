@@ -6,8 +6,15 @@ edition = "2021"
 [features]
 test-helper = []
 
-[dependencies]
-rusb = "0.9"
+# Front end: provides a pixel buffer where the application extract the image displayed in the screen
+
+# Back end: provides methods used to send USB bulk data to the device
+rusb = ["dep:rusb"]
+
+[dependencies.rusb]
+version = "0.9"
+optional = true
+default-features = false
 
 [dev-dependencies.dj_screen]
 path = "."

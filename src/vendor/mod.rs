@@ -2,29 +2,28 @@ pub mod traktor;
 
 use crate::error::*;
 use crate::Buffer;
+use crate::usb::UsbDevice;
 
-pub trait Driver<'a, CTX: rusb::UsbContext>: Sized {
+pub trait Driver<'a, DEV: UsbDevice>: Sized {
     const NAME: &'static str;
     const SCREEN_NUMBER: usize;
 
-    type Handle: ScreenHandle;
+    type Handle: ScreenHandle<DEV>;
 
-    fn check_device_id(vendor_id: u16, device_id: u16) -> Result<()>;
+    fn check_device_id(vendor_id: u16, device_id: u16) -> Result<(), DEV>;
 
-    fn is_made_for(handle: &rusb::DeviceHandle<CTX>) -> Result<()> {
-        // Since libusb 1.0.16 (2013), the function device_descriptor() does not return error
-        // Assuming that the used version is older than libusb 1.0.16
-        let descriptor = handle.device().device_descriptor()?;
+    fn is_made_for(handle: &DEV) -> Result<(), DEV> {
+        let ids = handle.product_information();
 
-        Self::check_device_id(descriptor.vendor_id(), descriptor.product_id())
+        Self::check_device_id(ids.vendor_id, ids.product_id)
     }
 
-    fn try_init(handle: rusb::DeviceHandle<CTX>) -> Result<Self>;
+    fn try_init(handle: DEV) -> Result<Self, DEV>;
 
-    fn acquire_screen(&'a self, screen_id: usize) -> Result<Self::Handle>;
+    fn acquire_screen(&'a self, screen_id: usize) -> Result<Self::Handle, DEV>;
 }
 
-pub trait ScreenHandle {
+pub trait ScreenHandle<DEV : UsbDevice> {
     fn send_buffer<B: Buffer>(
         &mut self,
         buffer: B,
@@ -32,7 +31,7 @@ pub trait ScreenHandle {
         y: u16,
         width: u16,
         height: u16,
-    ) -> Result<()>;
+    ) -> Result<(), DEV>;
 
     fn width(&self) -> u16;
     fn height(&self) -> u16;

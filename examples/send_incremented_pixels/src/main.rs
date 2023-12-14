@@ -1,3 +1,5 @@
+extern crate rusb;
+
 use dj_screen::vendor::traktor::kontrol_s4_mk3::KontrolS4MK3Driver;
 use dj_screen::vendor::{Driver, ScreenHandle};
 use dj_screen::{Color, IntoPixelIter};

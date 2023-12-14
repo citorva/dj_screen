@@ -1,0 +1,12 @@
+[package]
+name = "send_incremented_pixels"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+rusb = "0.9"
+
+[dependencies.dj_screen]
+path = "../../"
+features = ["rusb", "test_helper"]
